@@ -23,7 +23,8 @@ const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 const model = process.env.OPENAI_GPT_MODEL ?? "gpt-4o-mini";
 
 const sharedPrompt = `Please maintain all logic, comments, imports.
-Return the response as a code block with no additional explanation.`;
+Return the response as a code block with no additional explanation.
+If no code changes are needed, return the original code block.`;
 
 // Convert fs functions to Promises
 const readFile = promisify(fs.readFile);
