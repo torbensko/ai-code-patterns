@@ -9,6 +9,15 @@ import moment from "moment";
 
 dotenv.config();
 
+if (!process.env.OPENAI_API_KEY) {
+  console.error("OPENAI_API_KEY is required.");
+  process.exit(1);
+}
+if (!process.env.OPENAI_GPT_MODEL) {
+  console.error("OPENAI_GPT_MODEL is required.");
+  process.exit(1);
+}
+
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 const sharedPrompt = `Please maintain all logic and comments.
@@ -18,12 +27,6 @@ Return the response as a JSON object with no additional explanation.`;
 const readFile = promisify(fs.readFile);
 const writeFile = promisify(fs.writeFile);
 const stat = promisify(fs.stat);
-
-// Extract code block from GPT response
-function extractCodeBlock(response: string): string | null {
-  const match = response.match(/```(?:\w+)?\n([\s\S]+?)\n```/);
-  return match ? match[1] : null;
-}
 
 // Process a single file
 async function processFile(
@@ -46,12 +49,11 @@ async function processFile(
     const input = `${prompt}\n\n${sharedPrompt}\n\n${fileContent}`;
 
     console.log(`Processing: ${filePath}...`);
-
     console.log(input);
 
     // Send to OpenAI
     // const completion = await openai.chat.completions.create({
-    //   model: "gpt-4",
+    //   model: OPENAI_GPT_MODEL,
     //   messages: [{ role: "user", content: input }],
     // });
 
