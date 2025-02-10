@@ -6,6 +6,30 @@ test("extracts code block from a string", () => {
   expect(extractCodeBlock(input)).toBe(expected);
 });
 
+test("extracts code block from a string", () => {
+  const input = `\`\`\`swift
+//
+//  SplitButton.swift
+//  Workouts
+//
+//  Created by Torben Sko on 9/12/2024.
+//
+
+import SwiftUI
+
+/// @Deprecated Created as an experiment for BetweenExercisesButtonView
+struct SplitButton: View {
+    let leftTitle: String
+    ...
+}
+
+#Preview {
+    SplitButton_Preview()
+}
+\`\`\``;
+  expect(extractCodeBlock(input).length).toBeGreaterThan(0);
+});
+
 test("throws if missing a code block", () => {
   const input = "Just some text without code";
   expect(() => extractCodeBlock(input)).toThrow();

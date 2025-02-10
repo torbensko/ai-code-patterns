@@ -6,15 +6,16 @@
 // ```
 //
 // It expects newlines before and after the code block.
-export function extractCodeBlock(response: string): string | null {
-  const count = response.match(/```[^\n]*\n(.*?)\n```/g);
-  const match = response.match(/```[^\n]*\n(.*?)\n```/);
+export function extractCodeBlock(response: string): string {
+  const count = response.match(/```[^\n]*\n(.*?)\n```/gs);
+  // s is needed to match newlines
+  const match = response.match(/```[^\n]*\n(.*?)\n```/s);
 
-  if (!count || count.length !== 1) {
+  if (!count || count.length !== 1 || match === null || match.length !== 2) {
     throw new Error(
       `Expected exactly one code block, got ${count ? count.length : 0}`
     );
   }
 
-  return match ? match[1] : null;
+  return match[1];
 }

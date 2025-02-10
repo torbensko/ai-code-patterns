@@ -6,6 +6,7 @@ import { glob } from "glob";
 import OpenAI from "openai";
 import dotenv from "dotenv";
 import moment from "moment";
+import { extractCodeBlock } from "./extractCodeBlock";
 
 dotenv.config();
 
@@ -19,9 +20,10 @@ if (!process.env.OPENAI_GPT_MODEL) {
 }
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+const model = process.env.OPENAI_GPT_MODEL ?? "gpt-4o-mini";
 
-const sharedPrompt = `Please maintain all logic and comments.
-Return the response as a JSON object with no additional explanation.`;
+const sharedPrompt = `Please maintain all logic, comments, imports.
+Return the response as a code block with no additional explanation.`;
 
 // Convert fs functions to Promises
 const readFile = promisify(fs.readFile);
@@ -45,31 +47,32 @@ async function processFile(
       return;
     }
 
+    const extension = path.extname(filePath).replace(".", "");
+
     // Concatenate prompt and file content
-    const input = `${prompt}\n\n${sharedPrompt}\n\n${fileContent}`;
+    const input = `${prompt}\n\n${sharedPrompt}\n\n\`\`\`${extension}\n${fileContent}\`\`\`\n`;
 
     console.log(`Processing: ${filePath}...`);
-    console.log(input);
+    // DEBUG:
+    //console.log(input);
 
     // Send to OpenAI
-    // const completion = await openai.chat.completions.create({
-    //   model: OPENAI_GPT_MODEL,
-    //   messages: [{ role: "user", content: input }],
-    // });
+    const completion = await openai.chat.completions.create({
+      model,
+      messages: [{ role: "user", content: input }],
+    });
 
-    // const response = completion.choices[0].message?.content ?? "";
-    // const extractedCode = extractCodeBlock(response);
+    const response = completion.choices[0].message?.content ?? "";
+    //console.log(response);
 
-    // if (!extractedCode) {
-    //   console.warn(`No valid code block found for ${filePath}`);
-    //   return;
-    // }
+    // will throw if it doesn't include a single code block
+    const extractedCode = extractCodeBlock(response);
 
-    // // Write the result back with a comment
-    // const updatedContent = `${generatedComment}\n\n${extractedCode}`;
-    // await writeFile(filePath, updatedContent, "utf-8");
+    // Write the result back with a comment
+    const updatedContent = `${generatedComment}\n\n${extractedCode}`;
+    await writeFile(filePath, updatedContent, "utf-8");
 
-    // console.log(`Updated: ${filePath}`);
+    console.log(`Updated: ${filePath}`);
   } catch (error) {
     console.error(`Error processing ${filePath}:`, error);
   }
