@@ -31,18 +31,45 @@ const readFile = promisify(fs.readFile);
 const writeFile = promisify(fs.writeFile);
 const stat = promisify(fs.stat);
 
-// Process a single file
-async function processFile(
+function generateComment(promptName: string, date?: string): string {
+  let comment = `// Generated using ${promptName}`;
+  if (date) {
+    comment += ` on ${date}`;
+  }
+  return comment;
+}
+
+async function requiresProcessing(
   filePath: string,
-  prompt: string,
-  promptName: string,
-  date: string
-) {
+  promptName: string
+): Promise<boolean> {
   try {
     let fileContent = await readFile(filePath, "utf-8");
 
     // Check if file already has the generated comment
-    const generatedComment = `// Generated using ${promptName} on ${date}`;
+    const generatedComment = generateComment(promptName);
+    if (fileContent.includes(generatedComment)) {
+      return false;
+    }
+  } catch (error) {
+    console.error(`Error processing ${filePath}:`, error);
+  }
+  return true;
+}
+
+// Process a single file
+async function processFile(
+  filePath: string,
+  prompt: string,
+  promptName: string
+) {
+  const date = moment().format("YYYY-MM-DD");
+
+  try {
+    let fileContent = await readFile(filePath, "utf-8");
+
+    // Check if file already has the generated comment
+    const generatedComment = generateComment(promptName, date);
     if (fileContent.includes(generatedComment)) {
       console.log(`Skipping ${filePath} (already processed with this prompt)`);
       return;
@@ -79,30 +106,56 @@ async function processFile(
   }
 }
 
-// Main function
-async function main() {
-  const promptPath = process.argv[2];
-  const sourcePath = process.argv[3];
+interface IParams {
+  promptPath: string;
+  sourcePath: string;
+  includesText: string | undefined;
+}
+
+function getParams(): IParams {
+  // Simple argument parsing
+  let promptPath: string | undefined;
+  let sourcePath: string | undefined;
+  let includesText: string | undefined;
+
+  for (let i = 2; i < process.argv.length; i++) {
+    const arg = process.argv[i];
+
+    if (arg.startsWith("--includes=")) {
+      // Extract the text after --includes=
+      includesText = arg.slice("--includes=".length);
+    } else if (!promptPath) {
+      promptPath = arg;
+    } else if (!sourcePath) {
+      sourcePath = arg;
+    }
+  }
 
   if (!promptPath || !sourcePath) {
-    console.error("Usage: ts-node script.ts <promptPath> <sourcePath>");
+    console.error(
+      "Usage: ts-node script.ts <promptPath> <sourcePath> [--includes=text]"
+    );
     process.exit(1);
   }
 
-  // Read the prompt file
+  return { promptPath, sourcePath, includesText };
+}
+
+async function getFilePaths(params: IParams): Promise<string[]> {
+  const { promptPath, sourcePath, includesText } = params;
+
+  // Check that prompt file exists
   if (!fs.existsSync(promptPath)) {
     console.error(`Prompt file not found: ${promptPath}`);
     process.exit(1);
   }
-  const prompt = await readFile(promptPath, "utf-8");
-  const promptName = path.basename(promptPath);
-  const date = moment().format("YYYY-MM-DD");
 
   // Determine if sourcePath is a directory or file
   let files: string[] = [];
   try {
     const stats = await stat(sourcePath);
     if (stats.isDirectory()) {
+      // Grab all matching code files
       files = await glob(
         `${sourcePath}/**/*.{ts,js,py,java,cpp,swift,kt,go,rb}`,
         { nodir: true }
@@ -115,10 +168,57 @@ async function main() {
     process.exit(1);
   }
 
-  // Process each file
-  for (const file of files) {
-    await processFile(file, prompt, promptName, date);
+  // If --includes=<text> was provided, filter files to only those containing that text
+  if (includesText) {
+    const filtered: string[] = [];
+    for (const file of files) {
+      try {
+        const content = await readFile(file, "utf-8");
+        if (content.includes(includesText)) {
+          filtered.push(file);
+        }
+      } catch (e) {
+        // If a file can't be read or doesn't exist, ignore it
+      }
+    }
+    files = filtered;
   }
+
+  return files;
+}
+
+interface IPrompt {
+  prompt: string;
+  promptName: string;
+}
+
+async function fetchPrompt(promptPath: string): Promise<IPrompt> {
+  // Read the prompt
+  const prompt = await readFile(promptPath, "utf-8");
+  const promptName = path.basename(promptPath);
+  return { prompt, promptName };
+}
+
+// Main function
+async function main() {
+  const params = getParams();
+  const files = await getFilePaths(params);
+
+  // filter the files down to only those that need processing
+  const filesToProcess = await Promise.all(
+    files.filter((file) => requiresProcessing(file, params.promptPath))
+  );
+
+  filesToProcess.forEach((file) => {
+    console.log(file);
+  });
+
+  // const { prompt, promptName } = await fetchPrompt(params.promptPath);
+
+  // // Process each file
+  // for (const file of files) {
+  //   await processFile(file, prompt, promptName, date);
+  // }
 }
 
 // Run the script
