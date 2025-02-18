@@ -43,16 +43,12 @@ async function requiresProcessing(
   filePath: string,
   promptName: string
 ): Promise<boolean> {
-  try {
-    let fileContent = await readFile(filePath, "utf-8");
+  let fileContent = await readFile(filePath, "utf-8");
 
-    // Check if file already has the generated comment
-    const generatedComment = generateComment(promptName);
-    if (fileContent.includes(generatedComment)) {
-      return false;
-    }
-  } catch (error) {
-    console.error(`Error processing ${filePath}:`, error);
+  // Check if file already has the generated comment
+  const generatedComment = generateComment(promptName);
+  if (fileContent.includes(generatedComment)) {
+    return false;
   }
   return true;
 }
@@ -80,7 +76,7 @@ async function processFile(
     // Concatenate prompt and file content
     const input = `${prompt}\n\n${sharedPrompt}\n\n\`\`\`${extension}\n${fileContent}\`\`\`\n`;
 
-    console.log(`Processing: ${filePath}...`);
+    console.log(`🔄 Processing: ${filePath}...`);
     // DEBUG:
     //console.log(input);
 
@@ -100,23 +96,24 @@ async function processFile(
     const updatedContent = `${generatedComment}\n\n${extractedCode}`;
     await writeFile(filePath, updatedContent, "utf-8");
 
-    console.log(`Updated: ${filePath}`);
+    console.log(`✅ Finished`);
   } catch (error) {
-    console.error(`Error processing ${filePath}:`, error);
+    console.error(`❌ Error:`, error);
   }
 }
 
 interface IParams {
   promptPath: string;
   sourcePath: string;
-  includesText: string | undefined;
+  includesText?: string;
+  extensions?: string[];
 }
 
 function getParams(): IParams {
-  // Simple argument parsing
   let promptPath: string | undefined;
   let sourcePath: string | undefined;
   let includesText: string | undefined;
+  let extensions: string[] | undefined;
 
   for (let i = 2; i < process.argv.length; i++) {
     const arg = process.argv[i];
@@ -124,6 +121,13 @@ function getParams(): IParams {
     if (arg.startsWith("--includes=")) {
       // Extract the text after --includes=
       includesText = arg.slice("--includes=".length);
+    } else if (arg.startsWith("--ext=")) {
+      // Extract the text after --ext= and split by comma
+      extensions = arg
+        .slice("--ext=".length)
+        .split(",")
+        .map((ext) => ext.trim())
+        .filter(Boolean);
     } else if (!promptPath) {
       promptPath = arg;
     } else if (!sourcePath) {
@@ -133,16 +137,16 @@ function getParams(): IParams {
 
   if (!promptPath || !sourcePath) {
     console.error(
-      "Usage: ts-node script.ts <promptPath> <sourcePath> [--includes=text]"
+      "Usage: ts-node script.ts <promptPath> <sourcePath> [--includes=text] [--ext=ts,js,...]"
     );
     process.exit(1);
   }
 
-  return { promptPath, sourcePath, includesText };
+  return { promptPath, sourcePath, includesText, extensions };
 }
 
 async function getFilePaths(params: IParams): Promise<string[]> {
-  const { promptPath, sourcePath, includesText } = params;
+  const { promptPath, sourcePath, includesText, extensions } = params;
 
   // Check that prompt file exists
   if (!fs.existsSync(promptPath)) {
@@ -152,15 +156,32 @@ async function getFilePaths(params: IParams): Promise<string[]> {
 
   // Determine if sourcePath is a directory or file
   let files: string[] = [];
+
   try {
     const stats = await stat(sourcePath);
     if (stats.isDirectory()) {
-      // Grab all matching code files
-      files = await glob(
-        `${sourcePath}/**/*.{ts,js,py,java,cpp,swift,kt,go,rb}`,
-        { nodir: true }
-      );
+      // If the user provided custom extensions, use them. Otherwise, use the default set.
+      const defaultExtensions = [
+        "ts",
+        "js",
+        "py",
+        "java",
+        "cpp",
+        "swift",
+        "kt",
+        "go",
+        "rb",
+      ];
+      const extsToUse =
+        extensions && extensions.length > 0 ? extensions : defaultExtensions;
+
+      // Build a glob pattern like: ./src/**/*.{ts,js,py,...}
+      const fileExtensions =
+        extsToUse.length > 1 ? `{${extsToUse.join(",")}}` : extsToUse[0];
+      const globPattern = `${sourcePath}/**/*.${fileExtensions}`;
+      files = await glob(globPattern, { nodir: true });
     } else {
+      // Single file provided
       files = [sourcePath];
     }
   } catch (err) {
@@ -202,23 +223,35 @@ async function fetchPrompt(promptPath: string): Promise<IPrompt> {
 // Main function
 async function main() {
   const params = getParams();
+
   const files = await getFilePaths(params);
+  const { prompt, promptName } = await fetchPrompt(params.promptPath);
 
-  // filter the files down to only those that need processing
-  const filesToProcess = await Promise.all(
-    files.filter((file) => requiresProcessing(file, params.promptPath))
-  );
+  // Only keep files that require processing
+  const filesToProcess: string[] = [];
+  const filesAlreadyProcessed: string[] = [];
+  for (const file of files) {
+    const needed = await requiresProcessing(file, promptName);
 
+    if (needed) {
+      filesToProcess.push(file);
+    } else {
+      filesAlreadyProcessed.push(file);
+    }
+  }
+
+  // For debugging, you can log which files you're processing
+  filesAlreadyProcessed.forEach((file) => {
+    console.log(`✅ Already processed: ${file}`);
+  });
   filesToProcess.forEach((file) => {
-    console.log(file);
+    console.log(`🟡 Will process: ${file}`);
   });
 
-  // const { prompt, promptName } = await fetchPrompt(params.promptPath);
-
-  // // Process each file
-  // for (const file of files) {
-  //   await processFile(file, prompt, promptName, date);
-  // }
+  // Process each file
+  for (const file of filesToProcess) {
+    await processFile(file, prompt, promptName);
+  }
 }
 
 // Run the script
