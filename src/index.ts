@@ -107,6 +107,7 @@ interface IParams {
   sourcePath: string;
   includesText?: string;
   extensions?: string[];
+  dryRun: boolean;
 }
 
 function getParams(): IParams {
@@ -114,15 +115,16 @@ function getParams(): IParams {
   let sourcePath: string | undefined;
   let includesText: string | undefined;
   let extensions: string[] | undefined;
+  let dryRun = false;
 
   for (let i = 2; i < process.argv.length; i++) {
     const arg = process.argv[i];
 
-    if (arg.startsWith("--includes=")) {
-      // Extract the text after --includes=
+    if (arg === "--dry") {
+      dryRun = true;
+    } else if (arg.startsWith("--includes=")) {
       includesText = arg.slice("--includes=".length);
     } else if (arg.startsWith("--ext=")) {
-      // Extract the text after --ext= and split by comma
       extensions = arg
         .slice("--ext=".length)
         .split(",")
@@ -137,12 +139,12 @@ function getParams(): IParams {
 
   if (!promptPath || !sourcePath) {
     console.error(
-      "Usage: ts-node script.ts <promptPath> <sourcePath> [--includes=text] [--ext=ts,js,...]"
+      "Usage: ts-node script.ts <promptPath> <sourcePath> [--includes=text] [--ext=ts,js,...] [--dry]"
     );
     process.exit(1);
   }
 
-  return { promptPath, sourcePath, includesText, extensions };
+  return { promptPath, sourcePath, includesText, extensions, dryRun };
 }
 
 async function getFilePaths(params: IParams): Promise<string[]> {
@@ -247,6 +249,11 @@ async function main() {
   filesToProcess.forEach((file) => {
     console.log(`🟡 Will process: ${file}`);
   });
+
+  if (params.dryRun) {
+    console.log("🛑 Dry run enabled, no files will be processed.");
+    return;
+  }
 
   // Process each file
   for (const file of filesToProcess) {
