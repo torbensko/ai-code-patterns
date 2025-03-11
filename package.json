@@ -21,5 +21,24 @@
   "devDependencies": {
     "@types/jest": "^29.5.14",
     "@types/node": "^22.13.1"
-  }
+  },
+  "version": "1.0.0",
+  "description": "Bulk-run review prompts against your codebase",
+  "repository": {
+    "type": "git",
+    "url": "git+ssh://git@github.com/torbensko/ai-code-review.git"
+  },
+  "keywords": [
+    "AI",
+    "code",
+    "review",
+    "pr",
+    "prompt"
+  ],
+  "author": "Torben Sko",
+  "license": "GPL",
+  "bugs": {
+    "url": "https://github.com/torbensko/ai-code-review/issues"
+  },
+  "homepage": "https://github.com/torbensko/ai-code-review#readme"
 }
