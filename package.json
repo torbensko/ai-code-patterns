@@ -1,8 +1,10 @@
 {
   "name": "ai-code-patterns",
+  "version": "1.0.1",
   "packageManager": "yarn@4.4.1",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "bin": "./dist/index.js",
   "scripts": {
     "start": "ts-node src/index.ts",
     "build": "tsc",
@@ -22,7 +24,6 @@
     "@types/jest": "^29.5.14",
     "@types/node": "^22.13.1"
   },
-  "version": "1.0.0",
   "description": "Bulk-run review prompts against your codebase",
   "repository": {
     "type": "git",
