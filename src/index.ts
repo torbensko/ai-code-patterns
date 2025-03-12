@@ -31,8 +31,9 @@ const readFile = promisify(fs.readFile);
 const writeFile = promisify(fs.writeFile);
 const stat = promisify(fs.stat);
 
-function generateComment(promptName: string, date?: string): string {
-  let comment = `// Generated using ${promptName}`;
+function generateComment(promptFile: string, date?: string): string {
+  let promptName = path.basename(promptFile);
+  let comment = `// performed \"${promptName}\" review`;
   if (date) {
     comment += ` on ${date}`;
   }

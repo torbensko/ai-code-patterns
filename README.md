@@ -1,4 +1,4 @@
-# ai-code-review
+# ai-code-patterns
 
 ```zsh
 yarn start path/to/prompt.txt path/to/sources

@@ -994,9 +994,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"ai-code-review@workspace:.":
+"ai-code-patterns@workspace:.":
   version: 0.0.0-use.local
-  resolution: "ai-code-review@workspace:."
+  resolution: "ai-code-patterns@workspace:."
   dependencies:
     "@types/jest": "npm:^29.5.14"
     "@types/node": "npm:^22.13.1"
@@ -1008,6 +1008,8 @@ __metadata:
     ts-jest: "npm:^29.2.5"
     ts-node: "npm:^10.9.2"
     typescript: "npm:^5.7.3"
+  bin:
+    ai-code-patterns: ./dist/index.js
   languageName: unknown
   linkType: soft
 

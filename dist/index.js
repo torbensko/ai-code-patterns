@@ -30,8 +30,9 @@ If no code changes are needed, return the original code block.`;
 const readFile = (0, util_1.promisify)(fs_1.default.readFile);
 const writeFile = (0, util_1.promisify)(fs_1.default.writeFile);
 const stat = (0, util_1.promisify)(fs_1.default.stat);
-function generateComment(promptName, date) {
-    let comment = `// Generated using ${promptName}`;
+function generateComment(promptFile, date) {
+    let promptName = path_1.default.basename(promptFile);
+    let comment = `// performed \"${promptName}\" review`;
     if (date) {
         comment += ` on ${date}`;
     }
