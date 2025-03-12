@@ -32,7 +32,7 @@ const writeFile = promisify(fs.writeFile);
 const stat = promisify(fs.stat);
 
 function generateComment(promptFile: string, date?: string): string {
-  let promptName = path.basename(promptFile);
+  let promptName = promptFile.split(".")[0];
   let comment = `// performed \"${promptName}\" review`;
   if (date) {
     comment += ` on ${date}`;
@@ -94,7 +94,7 @@ async function processFile(
     const extractedCode = extractCodeBlock(response);
 
     // Write the result back with a comment
-    const updatedContent = `${generatedComment}\n\n${extractedCode}`;
+    const updatedContent = `${generatedComment}\n${extractedCode}`;
     await writeFile(filePath, updatedContent, "utf-8");
 
     console.log(`✅ Finished`);
