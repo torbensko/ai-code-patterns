@@ -7,6 +7,7 @@ import OpenAI from "openai";
 import dotenv from "dotenv";
 import moment from "moment";
 import { extractCodeBlock } from "./extractCodeBlock";
+import { generateComment } from "./generateComment";
 
 dotenv.config();
 
@@ -30,15 +31,6 @@ If no code changes are needed, return the original code block.`;
 const readFile = promisify(fs.readFile);
 const writeFile = promisify(fs.writeFile);
 const stat = promisify(fs.stat);
-
-function generateComment(promptFile: string, date?: string): string {
-  let promptName = promptFile.split(".")[0];
-  let comment = `// performed \"${promptName}\" review`;
-  if (date) {
-    comment += ` on ${date}`;
-  }
-  return comment;
-}
 
 async function requiresProcessing(
   filePath: string,
