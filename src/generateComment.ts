@@ -1,5 +1,4 @@
-export function generateComment(promptFile: string, date?: string): string {
-  let promptName = promptFile.split(".")[0];
+export function generateComment(promptName: string, date?: string): string {
   let comment = `// performed \"${promptName}\" review`;
   if (date) {
     comment += ` on ${date}`;

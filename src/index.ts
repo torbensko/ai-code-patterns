@@ -1,4 +1,4 @@
-#!/usr/bin/env ts-node
+#!/usr/bin/env node
 import fs from "fs";
 import path from "path";
 import { promisify } from "util";
@@ -97,6 +97,8 @@ async function processFile(
 
 interface IParams {
   promptPath: string;
+  // defaults to basename of promptPath
+  promptName: string;
   sourcePath: string;
   includesText?: string;
   extensions?: string[];
@@ -105,6 +107,7 @@ interface IParams {
 
 function getParams(): IParams {
   let promptPath: string | undefined;
+  let promptName: string | undefined;
   let sourcePath: string | undefined;
   let includesText: string | undefined;
   let extensions: string[] | undefined;
@@ -115,6 +118,8 @@ function getParams(): IParams {
 
     if (arg === "--dry") {
       dryRun = true;
+    } else if (arg.startsWith("--name=")) {
+      promptName = arg.slice("--name=".length);
     } else if (arg.startsWith("--includes=")) {
       includesText = arg.slice("--includes=".length);
     } else if (arg.startsWith("--ext=")) {
@@ -125,19 +130,31 @@ function getParams(): IParams {
         .filter(Boolean);
     } else if (!promptPath) {
       promptPath = arg;
+      // get the prompt name from the file name if not provided
+      if (!promptName) {
+        // strips the extension and an optional ".review" suffix
+        promptName = path.basename(promptPath).replace(".review", "");
+      }
     } else if (!sourcePath) {
       sourcePath = arg;
     }
   }
 
-  if (!promptPath || !sourcePath) {
+  if (!promptPath || !sourcePath || !promptName) {
     console.error(
-      "Usage: ts-node script.ts <promptPath> <sourcePath> [--includes=text] [--ext=ts,js,...] [--dry]"
+      "Usage: ai-code-patterns [--includes=text] [--ext=ts,js,...] [--dry] [--name=promptName] <promptPath> <sourcePath>"
     );
     process.exit(1);
   }
 
-  return { promptPath, sourcePath, includesText, extensions, dryRun };
+  return {
+    promptPath,
+    promptName,
+    sourcePath,
+    includesText,
+    extensions,
+    dryRun,
+  };
 }
 
 async function getFilePaths(params: IParams): Promise<string[]> {
@@ -203,24 +220,13 @@ async function getFilePaths(params: IParams): Promise<string[]> {
   return files;
 }
 
-interface IPrompt {
-  prompt: string;
-  promptName: string;
-}
-
-async function fetchPrompt(promptPath: string): Promise<IPrompt> {
-  // Read the prompt
-  const prompt = await readFile(promptPath, "utf-8");
-  const promptName = path.basename(promptPath);
-  return { prompt, promptName };
-}
-
 // Main function
 async function main() {
   const params = getParams();
+  const { promptName } = params;
 
   const files = await getFilePaths(params);
-  const { prompt, promptName } = await fetchPrompt(params.promptPath);
+  const prompt = await readFile(params.promptPath, "utf-8");
 
   // Only keep files that require processing
   const filesToProcess: string[] = [];

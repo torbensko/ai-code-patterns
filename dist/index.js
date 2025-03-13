@@ -1,4 +1,4 @@
-#!/usr/bin/env ts-node
+#!/usr/bin/env node
 "use strict";
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
@@ -77,6 +77,7 @@ async function processFile(filePath, prompt, promptName) {
 }
 function getParams() {
     let promptPath;
+    let promptName;
     let sourcePath;
     let includesText;
     let extensions;
@@ -85,6 +86,9 @@ function getParams() {
         const arg = process.argv[i];
         if (arg === "--dry") {
             dryRun = true;
+        }
+        else if (arg.startsWith("--name=")) {
+            promptName = arg.slice("--name=".length);
         }
         else if (arg.startsWith("--includes=")) {
             includesText = arg.slice("--includes=".length);
@@ -98,16 +102,28 @@ function getParams() {
         }
         else if (!promptPath) {
             promptPath = arg;
+            // get the prompt name from the file name if not provided
+            if (!promptName) {
+                // strips the extension and an optional ".review" suffix
+                promptName = path_1.default.basename(promptPath).replace(".review", "");
+            }
         }
         else if (!sourcePath) {
             sourcePath = arg;
         }
     }
-    if (!promptPath || !sourcePath) {
-        console.error("Usage: ts-node script.ts <promptPath> <sourcePath> [--includes=text] [--ext=ts,js,...] [--dry]");
+    if (!promptPath || !sourcePath || !promptName) {
+        console.error("Usage: ai-code-patterns [--includes=text] [--ext=ts,js,...] [--dry] [--name=promptName] <promptPath> <sourcePath>");
         process.exit(1);
     }
-    return { promptPath, sourcePath, includesText, extensions, dryRun };
+    return {
+        promptPath,
+        promptName,
+        sourcePath,
+        includesText,
+        extensions,
+        dryRun,
+    };
 }
 async function getFilePaths(params) {
     const { promptPath, sourcePath, includesText, extensions } = params;
@@ -166,17 +182,12 @@ async function getFilePaths(params) {
     }
     return files;
 }
-async function fetchPrompt(promptPath) {
-    // Read the prompt
-    const prompt = await readFile(promptPath, "utf-8");
-    const promptName = path_1.default.basename(promptPath);
-    return { prompt, promptName };
-}
 // Main function
 async function main() {
     const params = getParams();
+    const { promptName } = params;
     const files = await getFilePaths(params);
-    const { prompt, promptName } = await fetchPrompt(params.promptPath);
+    const prompt = await readFile(params.promptPath, "utf-8");
     // Only keep files that require processing
     const filesToProcess = [];
     const filesAlreadyProcessed = [];
