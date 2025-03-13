@@ -15,10 +15,6 @@ if (!process.env.OPENAI_API_KEY) {
   console.error("OPENAI_API_KEY is required.");
   process.exit(1);
 }
-if (!process.env.OPENAI_GPT_MODEL) {
-  console.error("OPENAI_GPT_MODEL is required.");
-  process.exit(1);
-}
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 const model = process.env.OPENAI_GPT_MODEL ?? "gpt-4o-mini";
@@ -50,7 +46,8 @@ async function requiresProcessing(
 async function processFile(
   filePath: string,
   prompt: string,
-  promptName: string
+  promptName: string,
+  gptModel: string
 ) {
   const date = moment().format("YYYY-MM-DD");
 
@@ -75,7 +72,7 @@ async function processFile(
 
     // Send to OpenAI
     const completion = await openai.chat.completions.create({
-      model,
+      model: gptModel,
       messages: [{ role: "user", content: input }],
     });
 
@@ -99,6 +96,7 @@ interface IParams {
   promptPath: string;
   // defaults to basename of promptPath
   promptName: string;
+  gptModel: string;
   sourcePath: string;
   includesText?: string;
   extensions?: string[];
@@ -110,8 +108,11 @@ function getParams(): IParams {
   let promptName: string | undefined;
   let sourcePath: string | undefined;
   let includesText: string | undefined;
+  let gptModel: string | undefined;
   let extensions: string[] | undefined;
   let dryRun = false;
+
+  gptModel = process.env.OPENAI_GPT_MODEL;
 
   for (let i = 2; i < process.argv.length; i++) {
     const arg = process.argv[i];
@@ -120,6 +121,8 @@ function getParams(): IParams {
       dryRun = true;
     } else if (arg.startsWith("--name=")) {
       promptName = arg.slice("--name=".length);
+    } else if (arg.startsWith("--model=")) {
+      gptModel = arg.slice("--model=".length);
     } else if (arg.startsWith("--includes=")) {
       includesText = arg.slice("--includes=".length);
     } else if (arg.startsWith("--ext=")) {
@@ -128,6 +131,9 @@ function getParams(): IParams {
         .split(",")
         .map((ext) => ext.trim())
         .filter(Boolean);
+    } else if (arg.startsWith("--")) {
+      console.error(`Unknown option: ${arg}`);
+      process.exit(1);
     } else if (!promptPath) {
       promptPath = arg;
       // get the prompt name from the file name if not provided
@@ -140,15 +146,21 @@ function getParams(): IParams {
     }
   }
 
+  if (!gptModel) {
+    console.error("Please set OPENAI_GPT_MODEL or use --model=<model>");
+    process.exit(1);
+  }
+
   if (!promptPath || !sourcePath || !promptName) {
     console.error(
-      "Usage: ai-code-patterns [--includes=text] [--ext=ts,js,...] [--dry] [--name=promptName] <promptPath> <sourcePath>"
+      "Usage: ai-code-patterns [--includes=text] [--ext=ts,js,...] [--dry] [--name=promptName] [--model=gpt-4o] <promptPath> <sourcePath>"
     );
     process.exit(1);
   }
 
   return {
     promptPath,
+    gptModel,
     promptName,
     sourcePath,
     includesText,
@@ -223,7 +235,7 @@ async function getFilePaths(params: IParams): Promise<string[]> {
 // Main function
 async function main() {
   const params = getParams();
-  const { promptName } = params;
+  const { promptName, gptModel } = params;
 
   const files = await getFilePaths(params);
   const prompt = await readFile(params.promptPath, "utf-8");
@@ -256,7 +268,7 @@ async function main() {
 
   // Process each file
   for (const file of filesToProcess) {
-    await processFile(file, prompt, promptName);
+    await processFile(file, prompt, promptName, gptModel);
   }
 }
 
